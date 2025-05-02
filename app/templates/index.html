@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Study Buddy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .file-upload:hover {
+            border-color: #6366f1;
+            background-color: #f0f4ff;
+        }
+
+        .question-item {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .question-item:hover {
+            background-color: #f8fafc;
+            transform: translateX(4px);
+        }
+
+        .answer-box {
+            transition: all 0.3s ease;
+        }
+
+        #questionList {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-indigo-700 mb-2">
+                <i class="fas fa-brain mr-2"></i>Smart Study Buddy
+            </h1>
+            <p class="text-gray-600">Upload your study materials and get AI-generated questions</p>
+        </header>
+
+        <!-- Main Content -->
+        <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-md overflow-hidden">
+            <!-- Upload Section -->
+            <div class="p-8 border-b border-gray-200">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-6">
+                    <i class="fas fa-file-upload mr-2 text-indigo-500"></i>Upload Study Material
+                </h2>
+                <form id="uploadForm" enctype="multipart/form-data" class="space-y-4">
+                    <div
+                        class="file-upload border-2 border-dashed border-gray-300 rounded-lg p-8 text-center transition-colors">
+                        <div class="flex flex-col items-center justify-center space-y-4">
+                            <i class="fas fa-file-pdf text-4xl text-indigo-500"></i>
+                            <p class="text-gray-500">Drag & drop your PDF or text file here</p>
+                            <label for="fileInput"
+                                class="cursor-pointer bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors">
+                                <i class="fas fa-folder-open mr-2"></i>Choose File
+                                <input id="fileInput" type="file" class="hidden" accept=".pdf,.txt" required>
+                            </label>
+                            <p id="fileName" class="text-sm text-gray-500 mt-2 hidden"></p>
+                        </div>
+                    </div>
+                    <button type="submit" id="uploadBtn"
+                        class="w-full bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors font-medium">
+                        <i class="fas fa-cloud-upload-alt mr-2"></i>Process Document
+                    </button>
+                </form>
+            </div>
+
+            <!-- Questions Section -->
+            <div id="questionsSection" class="hidden p-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-semibold text-gray-800">
+                        <i class="fas fa-question-circle mr-2 text-indigo-500"></i>Generated Questions
+                    </h2>
+                    <span id="questionCount"
+                        class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm font-medium">0
+                        questions</span>
+                </div>
+
+                <div id="loadingQuestions" class="hidden text-center py-8">
+                    <i class="fas fa-spinner spinner text-4xl text-indigo-500"></i>
+                    <p class="mt-4 text-gray-600">Generating questions...</p>
+                </div>
+
+                <ul id="questionList" class="space-y-3 mb-8"></ul>
+
+                <!-- Q&A Section -->
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">
+                        <i class="fas fa-comment-alt mr-2 text-indigo-500"></i>Document Answers
+                    </h3>
+                    <div id="loadingAnswer" class="hidden text-center py-4">
+                        <i class="fas fa-spinner spinner text-2xl text-indigo-500"></i>
+                        <p class="mt-2 text-gray-600">Generating answer...</p>
+                    </div>
+                    <div id="answerBox"
+                        class="answer-box mt-4 p-4 bg-white rounded-lg border border-gray-200 hidden transition-all">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Messages -->
+        <div id="statusMessage" class="fixed bottom-4 right-4 hidden">
+            <div class="bg-indigo-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center">
+                <i id="statusIcon" class="fas fa-info-circle mr-2"></i>
+                <span id="statusText"></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Show selected file name
+        document.getElementById('fileInput').addEventListener('change', function (e) {
+            const fileName = document.getElementById('fileName');
+            if (this.files.length > 0) {
+                fileName.textContent = this.files[0].name;
+                fileName.classList.remove('hidden');
+            } else {
+                fileName.classList.add('hidden');
+            }
+        });
+
+        // Show status message
+        function showStatus(message, isSuccess = true) {
+            const status = document.getElementById('statusMessage');
+            const icon = document.getElementById('statusIcon');
+            const text = document.getElementById('statusText');
+
+            status.classList.remove('hidden');
+            text.textContent = message;
+
+            if (isSuccess) {
+                status.className = 'fixed bottom-4 right-4 bg-indigo-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center';
+                icon.className = 'fas fa-check-circle mr-2';
+            } else {
+                status.className = 'fixed bottom-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center';
+                icon.className = 'fas fa-exclamation-circle mr-2';
+            }
+
+            setTimeout(() => {
+                status.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Toggle button loading state
+        function setLoading(buttonId, isLoading) {
+            const btn = document.getElementById(buttonId);
+            if (isLoading) {
+                btn.disabled = true;
+                btn.innerHTML = `<i class="fas fa-spinner spinner mr-2"></i>${btn.textContent}`;
+                btn.classList.add('opacity-75');
+            } else {
+                btn.disabled = false;
+                if (buttonId === 'uploadBtn') {
+                    btn.innerHTML = `<i class="fas fa-cloud-upload-alt mr-2"></i>Process Document`;
+                } else {
+                    btn.innerHTML = `Ask`;
+                }
+                btn.classList.remove('opacity-75');
+            }
+        }
+
+        // Handle file upload
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fileInput = document.getElementById('fileInput');
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                setLoading('uploadBtn', true);
+                showStatus("Processing your document...", true);
+
+                const response = await fetch('/api/v1/upload/', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || "Upload failed");
+                }
+
+                const data = await response.json();
+                showStatus("Document processed successfully!", true);
+                await generateQuestions();
+            } catch (error) {
+                showStatus(error.message || "An error occurred during upload", false);
+                console.error('Error:', error);
+            } finally {
+                setLoading('uploadBtn', false);
+            }
+        });
+
+        // Generate questions
+        async function generateQuestions() {
+            try {
+                document.getElementById('loadingQuestions').classList.remove('hidden');
+                document.getElementById('questionList').classList.add('hidden');
+
+                const response = await fetch('/api/v1/generate-questions/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || "Failed to generate questions");
+                }
+
+                const data = await response.json();
+                const questionList = document.getElementById('questionList');
+                questionList.innerHTML = '';
+
+                data.questions.forEach(q => {
+                    const li = document.createElement('li');
+                    li.className = 'question-item p-3 bg-white rounded-lg border border-gray-200 hover:shadow transition-all';
+                    li.textContent = q;
+
+                    // Add click handler for questions
+                    li.addEventListener('click', async () => {
+                        try {
+                            document.getElementById('loadingAnswer').classList.remove('hidden');
+                            document.getElementById('answerBox').classList.add('hidden');
+
+                            // Extract question text (remove number prefix)
+                            const questionText = q.includes('. ') ? q.split('. ')[1] : q;
+
+                            const response = await fetch('/api/v1/answer/', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ question: questionText })
+                            });
+
+                            if (!response.ok) {
+                                const error = await response.json();
+                                throw new Error(error.detail || "Failed to get answer");
+                            }
+
+                            const answerData = await response.json();
+                            const answerBox = document.getElementById('answerBox');
+                            answerBox.innerHTML = `
+                                <div class="text-indigo-600 font-medium mb-2">${q}</div>
+                                <div class="text-gray-700">${answerData.answer}</div>
+                            `;
+                            answerBox.classList.remove('hidden');
+                        } catch (error) {
+                            showStatus(error.message || "Error getting answer", false);
+                            console.error('Error:', error);
+                        } finally {
+                            document.getElementById('loadingAnswer').classList.add('hidden');
+                        }
+                    });
+
+                    questionList.appendChild(li);
+                });
+
+                document.getElementById('questionCount').textContent = `${data.questions.length} questions`;
+                document.getElementById('questionsSection').classList.remove('hidden');
+                document.getElementById('questionList').classList.remove('hidden');
+                showStatus(`${data.questions.length} questions generated`, true);
+            } catch (error) {
+                showStatus(error.message || "Error generating questions", false);
+                console.error('Error:', error);
+            } finally {
+                document.getElementById('loadingQuestions').classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+
+</html>
